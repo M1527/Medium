@@ -21,8 +21,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
-
-  console.log('Swagger mounted at /api');
+  
   await app.listen(3000);
 }
 bootstrap();
