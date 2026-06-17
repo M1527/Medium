@@ -14,11 +14,11 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-  .setTitle('Medium Clone API')
-  .setDescription('Backend API for Medium clone')
-  .setVersion('1.0')
-  .addBearerAuth()
-  .build();
+    .setTitle('Medium Clone API')
+    .setDescription('Backend API for Medium clone')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);

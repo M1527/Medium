@@ -13,7 +13,6 @@ import { LoginUserDto } from './dto/login-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entitiy';
 
-
 @Injectable()
 export class UsersService {
   constructor(

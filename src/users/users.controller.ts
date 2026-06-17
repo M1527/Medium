@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Get, Request, UseGuards, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Get,
+  Request,
+  UseGuards,
+  Put,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -29,15 +37,9 @@ export class UsersController {
     return req.user;
   }
 
-   @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'))
   @Put('user')
-  updateCurrentUser(
-    @Request() req,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
-    return this.usersService.update(
-      req.user.userId,
-      updateUserDto,
-    );
+  updateCurrentUser(@Request() req, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.update(req.user.userId, updateUserDto);
   }
 }
