@@ -7,6 +7,7 @@ import {
   HeaderResolver,
   I18nJsonLoader,
   I18nModule,
+  QueryResolver,
 } from 'nestjs-i18n';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -25,7 +26,8 @@ import { createTypeOrmOptions } from './database/typeorm.config';
         watch: true,
       },
       resolvers: [
-        new HeaderResolver(['x-lang', 'lang']),
+        new QueryResolver(['lang']),
+        new HeaderResolver(['x-lang']),
         new AcceptLanguageResolver({ matchType: 'strict-loose' }),
       ],
     }),

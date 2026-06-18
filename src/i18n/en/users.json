@@ -1,6 +1,8 @@
 {
-  "emailOrUsernameExists": "Email or username already exists",
-  "invalidCredentials": "Invalid credentials",
-  "invalidRefreshToken": "Invalid refresh token",
-  "notFound": "User not found"
+  "errors": {
+    "duplicateEmailOrUsername": "Email or username already exists",
+    "invalidCredentials": "Invalid credentials",
+    "invalidSession": "Invalid session",
+    "notFound": "User not found"
+  }
 }

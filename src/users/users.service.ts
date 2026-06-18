@@ -46,7 +46,9 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new ConflictException(this.translate('users.emailOrUsernameExists'));
+      throw new ConflictException(
+        this.translate('users.errors.duplicateEmailOrUsername'),
+      );
     }
 
     const hashedPassword = await bcrypt.hash(password, PASSWORD_SALT_ROUNDS);
@@ -70,13 +72,17 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new UnauthorizedException(this.translate('users.invalidCredentials'));
+      throw new UnauthorizedException(
+        this.translate('users.errors.invalidCredentials'),
+      );
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      throw new UnauthorizedException(this.translate('users.invalidCredentials'));
+      throw new UnauthorizedException(
+        this.translate('users.errors.invalidCredentials'),
+      );
     }
 
     const accessToken = this.createAccessToken(user);
@@ -96,7 +102,9 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new UnauthorizedException(this.translate('users.invalidRefreshToken'));
+      throw new UnauthorizedException(
+        this.translate('users.errors.invalidSession'),
+      );
     }
 
     return {
@@ -110,7 +118,7 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new NotFoundException(this.translate('users.notFound'));
+      throw new NotFoundException(this.translate('users.errors.notFound'));
     }
 
     const { password, ...profileUpdates } = updateUserDto;
@@ -162,7 +170,9 @@ export class UsersService {
       const message = error instanceof Error ? error.message : 'Unknown error';
       this.logger.warn(`Invalid refresh token: ${message}`);
 
-      throw new UnauthorizedException(this.translate('users.invalidRefreshToken'));
+      throw new UnauthorizedException(
+        this.translate('users.errors.invalidSession'),
+      );
     }
   }
 
