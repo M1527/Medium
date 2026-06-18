@@ -1,0 +1,8 @@
+{
+  "errors": {
+    "duplicateEmailOrUsername": "Email hoặc tên người dùng đã tồn tại",
+    "invalidCredentials": "Thông tin đăng nhập không hợp lệ",
+    "invalidSession": "Phiên đăng nhập không hợp lệ",
+    "notFound": "Không tìm thấy người dùng"
+  }
+}
