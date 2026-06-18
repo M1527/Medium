@@ -16,6 +16,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entitiy';
 import { PASSWORD_SALT_ROUNDS } from '../common/constants/app.constants';
 
@@ -58,8 +59,7 @@ export class UsersService {
 
     const savedUser = await this.usersRepository.save(user);
 
-    const { password: _, ...result } = savedUser;
-    return result;
+    return UserResponseDto.createFromUser(savedUser);
   }
 
   async login(loginUserDto: LoginUserDto) {
@@ -113,25 +113,25 @@ export class UsersService {
       throw new NotFoundException(this.translate('users.notFound'));
     }
 
-    if (updateUserDto.email !== undefined) {
-      user.email = updateUserDto.email;
-    }
+    const { password, ...profileUpdates } = updateUserDto;
+    const updatePayload: Partial<
+      Pick<User, 'email' | 'username' | 'password'>
+    > = {
+      ...profileUpdates,
+    };
 
-    if (updateUserDto.username !== undefined) {
-      user.username = updateUserDto.username;
-    }
-
-    if (updateUserDto.password !== undefined) {
-      user.password = await bcrypt.hash(
-        updateUserDto.password,
+    if (password !== undefined) {
+      updatePayload.password = await bcrypt.hash(
+        password,
         PASSWORD_SALT_ROUNDS,
       );
     }
 
+    Object.assign(user, updatePayload);
+
     const updatedUser = await this.usersRepository.save(user);
 
-    const { password, ...result } = updatedUser;
-    return result;
+    return UserResponseDto.createFromUser(updatedUser);
   }
 
   private translate(key: string): string {
