@@ -1,0 +1,5 @@
+{
+  "emailOrUsernameExists": "Email or username already exists",
+  "invalidCredentials": "Invalid credentials",
+  "notFound": "User not found"
+}

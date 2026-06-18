@@ -1,18 +1,18 @@
 import {
   ConflictException,
   Injectable,
-  UnauthorizedException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { I18nContext, I18nService } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entitiy';
-
 
 @Injectable()
 export class UsersService {
@@ -20,6 +20,7 @@ export class UsersService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly jwtService: JwtService,
+    private readonly i18n: I18nService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -30,7 +31,7 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new ConflictException('Email or username already exists');
+      throw new ConflictException(this.translate('users.emailOrUsernameExists'));
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -55,13 +56,13 @@ export class UsersService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(this.translate('users.invalidCredentials'));
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(this.translate('users.invalidCredentials'));
     }
 
     const accessToken = this.jwtService.sign({
@@ -76,29 +77,35 @@ export class UsersService {
   }
 
   async update(userId: number, updateUserDto: UpdateUserDto) {
-  const user = await this.usersRepository.findOne({
-    where: { id: userId },
-  });
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+    });
 
-  if (!user) {
-    throw new NotFoundException('User not found');
+    if (!user) {
+      throw new NotFoundException(this.translate('users.notFound'));
+    }
+
+    if (updateUserDto.email !== undefined) {
+      user.email = updateUserDto.email;
+    }
+
+    if (updateUserDto.username !== undefined) {
+      user.username = updateUserDto.username;
+    }
+
+    if (updateUserDto.password !== undefined) {
+      user.password = await bcrypt.hash(updateUserDto.password, 10);
+    }
+
+    const updatedUser = await this.usersRepository.save(user);
+
+    const { password, ...result } = updatedUser;
+    return result;
   }
 
-  if (updateUserDto.email !== undefined) {
-    user.email = updateUserDto.email;
+  private translate(key: string): string {
+    return this.i18n.t(key, {
+      lang: I18nContext.current()?.lang,
+    });
   }
-
-  if (updateUserDto.username !== undefined) {
-    user.username = updateUserDto.username;
-  }
-
-  if (updateUserDto.password !== undefined) {
-    user.password = await bcrypt.hash(updateUserDto.password, 10);
-  }
-
-  const updatedUser = await this.usersRepository.save(user);
-
-  const { password, ...result } = updatedUser;
-  return result;
-}
 }
