@@ -1,17 +1,17 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Put,
-  Param,
+  Controller,
   Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
   Request,
   UseGuards,
-  ParseIntPipe,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
@@ -40,18 +40,18 @@ export class ArticlesController {
   }
 
   @UseGuards(AuthGuard('jwt'))
-@Put(':id')
-update(
-  @Param('id', ParseIntPipe) id: number,
-  @Body() updateArticleDto: UpdateArticleDto,
-  @Request() req,
-) {
-  return this.articlesService.update(id, req.user.userId, updateArticleDto);
-}
+  @Put(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateArticleDto: UpdateArticleDto,
+    @Request() req,
+  ) {
+    return this.articlesService.update(id, req.user.userId, updateArticleDto);
+  }
 
- @UseGuards(AuthGuard('jwt'))
-@Delete(':id')
-remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
-  return this.articlesService.remove(id, req.user.userId);
-}
+  @UseGuards(AuthGuard('jwt'))
+  @Delete(':id')
+  remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.articlesService.remove(id, req.user.userId);
+  }
 }

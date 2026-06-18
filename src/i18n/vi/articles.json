@@ -1,0 +1,9 @@
+{
+  "errors": {
+    "forbidden": "B\u1ea1n kh\u00f4ng c\u00f3 quy\u1ec1n ch\u1ec9nh s\u1eeda b\u00e0i vi\u1ebft n\u00e0y",
+    "notFound": "Kh\u00f4ng t\u00ecm th\u1ea5y b\u00e0i vi\u1ebft"
+  },
+  "messages": {
+    "deleted": "X\u00f3a b\u00e0i vi\u1ebft th\u00e0nh c\u00f4ng"
+  }
+}
