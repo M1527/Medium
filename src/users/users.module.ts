@@ -22,6 +22,12 @@ import { UsersService } from './users.service';
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService, Logger],
+  providers: [
+    UsersService,
+    {
+      provide: Logger,
+      useFactory: () => new Logger(UsersService.name),
+    },
+  ],
 })
 export class UsersModule {}
