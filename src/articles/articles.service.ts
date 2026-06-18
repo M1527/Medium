@@ -17,99 +17,96 @@ export class ArticlesService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
   ) {}
-  async create(
-  createArticleDto: CreateArticleDto,
-  userId: number,
-) {
-  const author = await this.usersRepository.findOne({
-    where: { id: userId },
-  });
+  async create(createArticleDto: CreateArticleDto, userId: number) {
+    const author = await this.usersRepository.findOne({
+      where: { id: userId },
+    });
 
-  if (!author) {
-    throw new NotFoundException('User not found');
+    if (!author) {
+      throw new NotFoundException('User not found');
+    }
+
+    const article = this.articlesRepository.create({
+      ...createArticleDto,
+      author,
+    });
+
+    return await this.articlesRepository.save(article);
   }
-
-  const article = this.articlesRepository.create({
-    ...createArticleDto,
-    author,
-  });
-
-  return await this.articlesRepository.save(article);
-}
 
   async findAll() {
-  const articles = await this.articlesRepository.find({
-  relations: {
-    author: true,
-  },
-});
+    const articles = await this.articlesRepository.find({
+      relations: {
+        author: true,
+      },
+    });
 
-return articles.map((article) => {
-  const { password, ...author } = article.author;
+    return articles.map((article) => {
+      const { password, ...author } = article.author;
 
-  return {
-    ...article,
-    author,
-  };
-});
-}
+      return {
+        ...article,
+        author,
+      };
+    });
+  }
 
   async findOne(id: number) {
-  const article = await this.articlesRepository.findOne({
-    where: { id },
-    relations: {
-      author: true,
-    },
-  });
+    const article = await this.articlesRepository.findOne({
+      where: { id },
+      relations: {
+        author: true,
+      },
+    });
 
-  if (!article) {
-    throw new NotFoundException('Article not found');
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    const { password, ...author } = article.author;
+
+    return {
+      ...article,
+      author,
+    };
   }
-
-  const { password, ...author } = article.author;
-
-  return {
-    ...article,
-    author,
-  };
-}
 
   async update(id: number, updateArticleDto: UpdateArticleDto) {
-  const article = await this.articlesRepository.findOne({
-    where: { id },
-    relations: {
-      author: true,
-    },
-  });
+    const article = await this.articlesRepository.findOne({
+      where: { id },
+      relations: {
+        author: true,
+      },
+    });
 
-  if (!article) {
-    throw new NotFoundException('Article not found');
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    Object.assign(article, updateArticleDto);
+
+    const updatedArticle = await this.articlesRepository.save(article);
+    const { password, ...author } = updatedArticle.author;
+
+    return {
+      ...updatedArticle,
+      author,
+    };
   }
-
-  Object.assign(article, updateArticleDto);
-
-  const updatedArticle = await this.articlesRepository.save(article);
-  const { password, ...author } = updatedArticle.author;
-
-  return {
-    ...updatedArticle,
-    author,
-  };
-}
 
   async remove(id: number) {
-  const article = await this.articlesRepository.findOne({
-    where: { id },
-  });
+    const article = await this.articlesRepository.findOne({
+      where: { id },
+    });
 
-  if (!article) {
-    throw new NotFoundException('Article not found');
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+
+    await this.articlesRepository.remove(article);
+
+    return {
+      message: 'Article deleted successfully',
+    };
   }
-
-  await this.articlesRepository.remove(article);
-
-  return {
-    message: 'Article deleted successfully',
-  };
-}
 }
