@@ -17,6 +17,7 @@ import { LoginUserDto } from './dto/login-user.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entitiy';
+import { PASSWORD_SALT_ROUNDS } from '../common/constants/app.constants';
 
 type TokenPayload = {
   sub: number;
@@ -47,7 +48,7 @@ export class UsersService {
       throw new ConflictException(this.translate('users.emailOrUsernameExists'));
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, PASSWORD_SALT_ROUNDS);
 
     const user = this.usersRepository.create({
       email,
@@ -121,7 +122,10 @@ export class UsersService {
     }
 
     if (updateUserDto.password !== undefined) {
-      user.password = await bcrypt.hash(updateUserDto.password, 10);
+      user.password = await bcrypt.hash(
+        updateUserDto.password,
+        PASSWORD_SALT_ROUNDS,
+      );
     }
 
     const updatedUser = await this.usersRepository.save(user);

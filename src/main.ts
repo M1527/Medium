@@ -2,6 +2,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { APP_PORT, SWAGGER_API_VERSION } from './common/constants/app.constants';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -16,13 +17,13 @@ async function bootstrap() {
   const config = new DocumentBuilder()
   .setTitle('Medium Clone API')
   .setDescription('Backend API for Medium clone')
-  .setVersion('1.0')
+  .setVersion(SWAGGER_API_VERSION)
   .addBearerAuth()
   .build();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(3000);
+  await app.listen(APP_PORT);
 }
 bootstrap();
