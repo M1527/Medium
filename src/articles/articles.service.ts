@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -33,12 +33,32 @@ export class ArticlesService {
 
     return await this.articlesRepository.save(article);
   }
+  private async getArticleOrThrow(id: number) {
+  const article = await this.articlesRepository.findOne({
+    where: { id },
+    relations: {
+      author: true,
+    },
+  });
 
-  async findAll() {
-    const articles = await this.articlesRepository.find({
-      relations: {
-        author: true,
-      },
+  if (!article) {
+    throw new NotFoundException('Article not found');
+  }
+
+  return article;
+}
+
+private assertAuthor(article: Article, userId: number) {
+  if (article.author.id !== userId) {
+    throw new ForbiddenException('You are not allowed to modify this article');
+  }
+}
+
+async findAll() {
+  const articles = await this.articlesRepository.find({
+    relations: {
+      author: true,
+    },
     });
 
     return articles.map((article) => {
@@ -71,42 +91,30 @@ export class ArticlesService {
     };
   }
 
-  async update(id: number, updateArticleDto: UpdateArticleDto) {
-    const article = await this.articlesRepository.findOne({
-      where: { id },
-      relations: {
-        author: true,
-      },
-    });
+  async update(id: number, userId: number, updateArticleDto: UpdateArticleDto) {
+  const article = await this.getArticleOrThrow(id);
+  this.assertAuthor(article, userId);
 
-    if (!article) {
-      throw new NotFoundException('Article not found');
-    }
+  Object.assign(article, updateArticleDto);
 
-    Object.assign(article, updateArticleDto);
+  const updatedArticle = await this.articlesRepository.save(article);
 
-    const updatedArticle = await this.articlesRepository.save(article);
-    const { password, ...author } = updatedArticle.author;
+  const { password, ...author } = updatedArticle.author;
 
-    return {
-      ...updatedArticle,
-      author,
-    };
-  }
+  return {
+    ...updatedArticle,
+    author,
+  };
+}
 
-  async remove(id: number) {
-    const article = await this.articlesRepository.findOne({
-      where: { id },
-    });
+  async remove(id: number, userId: number) {
+  const article = await this.getArticleOrThrow(id);
+  this.assertAuthor(article, userId);
 
-    if (!article) {
-      throw new NotFoundException('Article not found');
-    }
+  await this.articlesRepository.remove(article);
 
-    await this.articlesRepository.remove(article);
-
-    return {
-      message: 'Article deleted successfully',
-    };
-  }
+  return {
+    message: 'Article deleted successfully',
+  };
+}
 }

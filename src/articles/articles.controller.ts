@@ -40,17 +40,18 @@ export class ArticlesController {
   }
 
   @UseGuards(AuthGuard('jwt'))
-  @Put(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateArticleDto: UpdateArticleDto,
-  ) {
-    return this.articlesService.update(id, updateArticleDto);
-  }
+@Put(':id')
+update(
+  @Param('id', ParseIntPipe) id: number,
+  @Body() updateArticleDto: UpdateArticleDto,
+  @Request() req,
+) {
+  return this.articlesService.update(id, req.user.userId, updateArticleDto);
+}
 
-  @UseGuards(AuthGuard('jwt'))
-  @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.articlesService.remove(id);
-  }
+ @UseGuards(AuthGuard('jwt'))
+@Delete(':id')
+remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
+  return this.articlesService.remove(id, req.user.userId);
+}
 }
