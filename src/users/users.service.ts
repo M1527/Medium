@@ -1,26 +1,39 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { I18nContext, I18nService } from 'nestjs-i18n';
+import type { SignOptions } from 'jsonwebtoken';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entitiy';
 
+type TokenPayload = {
+  sub: number;
+  email: string;
+  username: string;
+};
+
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly i18n: I18nService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -65,14 +78,28 @@ export class UsersService {
       throw new UnauthorizedException(this.translate('users.invalidCredentials'));
     }
 
-    const accessToken = this.jwtService.sign({
-      sub: user.id,
-      email: user.email,
-      username: user.username,
-    });
+    const accessToken = this.createAccessToken(user);
+    const refreshToken = this.createRefreshToken(user);
 
     return {
       access_token: accessToken,
+      refresh_token: refreshToken,
+    };
+  }
+
+  async refreshToken(refreshTokenDto: RefreshTokenDto) {
+    const payload = this.verifyRefreshToken(refreshTokenDto.refresh_token);
+
+    const user = await this.usersRepository.findOne({
+      where: { id: payload.sub },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException(this.translate('users.invalidRefreshToken'));
+    }
+
+    return {
+      access_token: this.createAccessToken(user),
     };
   }
 
@@ -107,5 +134,39 @@ export class UsersService {
     return this.i18n.t(key, {
       lang: I18nContext.current()?.lang,
     });
+  }
+
+  private createAccessToken(user: User): string {
+    return this.jwtService.sign(this.createTokenPayload(user));
+  }
+
+  private createRefreshToken(user: User): string {
+    return this.jwtService.sign(this.createTokenPayload(user), {
+      secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      expiresIn: this.configService.get<string>(
+        'JWT_REFRESH_EXPIRES_IN',
+      ) as SignOptions['expiresIn'],
+    });
+  }
+
+  private verifyRefreshToken(refreshToken: string): TokenPayload {
+    try {
+      return this.jwtService.verify<TokenPayload>(refreshToken, {
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Invalid refresh token: ${message}`);
+
+      throw new UnauthorizedException(this.translate('users.invalidRefreshToken'));
+    }
+  }
+
+  private createTokenPayload(user: User): TokenPayload {
+    return {
+      sub: user.id,
+      email: user.email,
+      username: user.username,
+    };
   }
 }
