@@ -1,6 +1,6 @@
 import { join } from 'path';
 import { type DataSourceOptions } from 'typeorm';
-import { User } from '../users/entities/user.entitiy';
+import { User } from '../users/entities/user.entity';
 
 export function createTypeOrmOptions(): DataSourceOptions {
   return {

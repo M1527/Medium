@@ -17,7 +17,7 @@ import { LoginUserDto } from './dto/login-user.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
-import { User } from './entities/user.entitiy';
+import { User } from './entities/user.entity';
 import { PASSWORD_SALT_ROUNDS } from '../common/constants/app.constants';
 
 type TokenPayload = {
