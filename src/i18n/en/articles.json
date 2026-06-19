@@ -1,0 +1,9 @@
+{
+  "errors": {
+    "forbidden": "You are not allowed to modify this article",
+    "notFound": "Article not found"
+  },
+  "messages": {
+    "deleted": "Article deleted successfully"
+  }
+}

@@ -8,7 +8,18 @@ describe('ArticlesController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ArticlesController],
-      providers: [ArticlesService],
+      providers: [
+        {
+          provide: ArticlesService,
+          useValue: {
+            create: jest.fn(),
+            findAll: jest.fn(),
+            findOne: jest.fn(),
+            remove: jest.fn(),
+            update: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     controller = module.get<ArticlesController>(ArticlesController);

@@ -1,12 +1,13 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import type { SignOptions } from 'jsonwebtoken';
 
 import { User } from './entities/user.entity';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+
+type JwtExpiresIn = NonNullable<JwtSignOptions['expiresIn']>;
 
 @Module({
   imports: [
@@ -17,14 +18,18 @@ import { UsersService } from './users.service';
       useFactory: (configService: ConfigService) => ({
         secret: configService.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: configService.get<string>(
-            'JWT_EXPIRES_IN',
-          ) as SignOptions['expiresIn'],
+          expiresIn: configService.getOrThrow<JwtExpiresIn>('JWT_EXPIRES_IN'),
         },
       }),
     }),
   ],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [
+    UsersService,
+    {
+      provide: Logger,
+      useFactory: () => new Logger(UsersService.name),
+    },
+  ],
 })
 export class UsersModule {}

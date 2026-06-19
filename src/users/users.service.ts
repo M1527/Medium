@@ -6,36 +6,38 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService, type JwtSignOptions } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { I18nContext, I18nService } from 'nestjs-i18n';
-import type { SignOptions } from 'jsonwebtoken';
 import { Repository } from 'typeorm';
+import { PASSWORD_SALT_ROUNDS } from '../common/constants/app.constants';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { User } from './entities/user.entity';
-import { PASSWORD_SALT_ROUNDS } from '../common/constants/app.constants';
 
-type TokenPayload = {
+type JwtExpiresIn = NonNullable<JwtSignOptions['expiresIn']>;
+type TokenType = 'access' | 'refresh';
+
+interface TokenPayload {
   sub: number;
   email: string;
   username: string;
-};
+  tokenType: TokenType;
+}
 
 @Injectable()
 export class UsersService {
-  private readonly logger = new Logger(UsersService.name);
-
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly i18n: I18nService,
     private readonly configService: ConfigService,
+    private readonly logger: Logger,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -85,17 +87,17 @@ export class UsersService {
       );
     }
 
-    const accessToken = this.createAccessToken(user);
-    const refreshToken = this.createRefreshToken(user);
-
-    return {
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    };
+    return this.createTokenPair(user);
   }
 
   async refreshToken(refreshTokenDto: RefreshTokenDto) {
     const payload = this.verifyRefreshToken(refreshTokenDto.refresh_token);
+
+    if (payload.tokenType !== 'refresh') {
+      throw new UnauthorizedException(
+        this.translate('users.errors.invalidSession'),
+      );
+    }
 
     const user = await this.usersRepository.findOne({
       where: { id: payload.sub },
@@ -107,9 +109,7 @@ export class UsersService {
       );
     }
 
-    return {
-      access_token: this.createAccessToken(user),
-    };
+    return this.createTokenPair(user);
   }
 
   async update(userId: number, updateUserDto: UpdateUserDto) {
@@ -143,44 +143,67 @@ export class UsersService {
   }
 
   private translate(key: string): string {
-    return this.i18n.t(key, {
-      lang: I18nContext.current()?.lang,
-    });
+    return this.i18n.t(key, { lang: I18nContext.current()?.lang });
+  }
+
+  private createTokenPair(user: User) {
+    return {
+      access_token: this.createAccessToken(user),
+      refresh_token: this.createRefreshToken(user),
+    };
   }
 
   private createAccessToken(user: User): string {
-    return this.jwtService.sign(this.createTokenPayload(user));
+    return this.jwtService.sign(this.createTokenPayload(user, 'access'), {
+      expiresIn: this.configService.getOrThrow<JwtExpiresIn>('JWT_EXPIRES_IN'),
+    });
   }
 
   private createRefreshToken(user: User): string {
-    return this.jwtService.sign(this.createTokenPayload(user), {
-      secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.get<string>(
+    const refreshSecret =
+      this.configService.getOrThrow<string>('JWT_REFRESH_SECRET');
+
+    return this.jwtService.sign(this.createTokenPayload(user, 'refresh'), {
+      secret: refreshSecret,
+      expiresIn: this.configService.getOrThrow<JwtExpiresIn>(
         'JWT_REFRESH_EXPIRES_IN',
-      ) as SignOptions['expiresIn'],
+      ),
     });
   }
 
   private verifyRefreshToken(refreshToken: string): TokenPayload {
+    const refreshSecret =
+      this.configService.getOrThrow<string>('JWT_REFRESH_SECRET');
+
     try {
       return this.jwtService.verify<TokenPayload>(refreshToken, {
-        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+        secret: refreshSecret,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.warn(`Invalid refresh token: ${message}`);
-
-      throw new UnauthorizedException(
-        this.translate('users.errors.invalidSession'),
-      );
+      this.logJwtRefreshVerificationFailure(error);
+      return this.throwInvalidSessionException();
     }
   }
 
-  private createTokenPayload(user: User): TokenPayload {
+  private logJwtRefreshVerificationFailure(error: unknown): void {
+    this.logger.warn({
+      message: 'JWT refresh verification failed',
+      reason: error instanceof Error ? error.name : 'UnknownError',
+    });
+  }
+
+  private throwInvalidSessionException(): never {
+    throw new UnauthorizedException(
+      this.translate('users.errors.invalidSession'),
+    );
+  }
+
+  private createTokenPayload(user: User, tokenType: TokenType): TokenPayload {
     return {
       sub: user.id,
       email: user.email,
       username: user.username,
+      tokenType,
     };
   }
 }

@@ -1,5 +1,6 @@
 import { join } from 'path';
 import { type DataSourceOptions } from 'typeorm';
+import { Article } from '../articles/entities/article.entity';
 import { User } from '../users/entities/user.entity';
 
 export function createTypeOrmOptions(): DataSourceOptions {
@@ -10,7 +11,7 @@ export function createTypeOrmOptions(): DataSourceOptions {
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    entities: [User],
+    entities: [User, Article],
     migrations: [join(__dirname, 'migrations/*{.ts,.js}')],
     synchronize: false,
     migrationsRun: false,
