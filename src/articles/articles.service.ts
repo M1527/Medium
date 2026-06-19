@@ -33,10 +33,8 @@ export class ArticlesService {
       throw new NotFoundException(this.translate('users.errors.notFound'));
     }
 
-    const article = this.articlesRepository.create({
-      ...createArticleDto,
-      author,
-    });
+    const article = this.articlesRepository.create(createArticleDto);
+    article.author = author;
 
     const savedArticle = await this.articlesRepository.save(article);
 

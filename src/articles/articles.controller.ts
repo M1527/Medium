@@ -5,7 +5,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
-  Patch,
+  Put,
   Post,
   Request,
   UseGuards,
@@ -40,7 +40,7 @@ export class ArticlesController {
   }
 
   @UseGuards(AuthGuard('jwt'))
-  @Patch(':id')
+  @Put(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateArticleDto: UpdateArticleDto,
