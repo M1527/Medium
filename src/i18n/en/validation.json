@@ -1,0 +1,7 @@
+{
+  "EMAIL": "{property} must be an email",
+  "JWT": "{property} must be a valid JWT",
+  "MIN_LENGTH": "{property} must be longer than or equal to {constraints.0} characters",
+  "NOT_EMPTY": "{property} should not be empty",
+  "STRING": "{property} must be a string"
+}
