@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Put,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { ArticlesService } from './articles.service';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
+import { QueryArticlesDto } from './dto/query-articles.dto';
 
 @ApiTags('articles')
 @ApiBearerAuth()
@@ -30,8 +32,8 @@ export class ArticlesController {
   }
 
   @Get()
-  findAll() {
-    return this.articlesService.findAll();
+  findAll(@Query() query: QueryArticlesDto) {
+    return this.articlesService.findAll(query);
   }
 
   @Get(':id')

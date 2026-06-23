@@ -11,6 +11,7 @@ import { User } from '../users/entities/user.entity';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { Article } from './entities/article.entity';
+import { QueryArticlesDto } from './dto/query-articles.dto';
 
 @Injectable()
 export class ArticlesService {
@@ -41,15 +42,45 @@ export class ArticlesService {
     return this.createArticleResponse(savedArticle);
   }
 
-  async findAll() {
-    const articles = await this.articlesRepository.find({
-      relations: {
-        author: true,
-      },
-    });
+  async findAll(query: QueryArticlesDto) {
+  const qb = this.articlesRepository
+    .createQueryBuilder('article')
+    .leftJoinAndSelect('article.author', 'author');
 
-    return articles.map((article) => this.createArticleResponse(article));
+  if (query.q) {
+    qb.andWhere(
+      `(
+        article.title LIKE :q OR
+        article.description LIKE :q OR
+        article.body LIKE :q
+      )`,
+      {
+        q: `%${query.q}%`,
+      },
+    );
   }
+
+  if (query.author) {
+    qb.andWhere('author.username LIKE :author', {
+      author: `%${query.author}%`,
+    });
+  }
+
+  const page = query.page ?? 1;
+  const items = query.items ?? 20;
+  const skip = (page - 1) * items;
+
+  qb.orderBy('article.createdAt', 'DESC')
+    .skip(skip)
+    .take(items);
+
+  const [articles, articlesCount] = await qb.getManyAndCount();
+
+  return {
+    articles: articles.map((article) => this.createArticleResponse(article)),
+    articlesCount,
+  };
+}
 
   async findOne(id: number) {
     const article = await this.getArticleOrThrow(id);
