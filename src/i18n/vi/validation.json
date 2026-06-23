@@ -3,5 +3,6 @@
   "JWT": "{property} phải là JWT hợp lệ",
   "MIN_LENGTH": "{property} phải có tối thiểu {constraints.0} ký tự",
   "NOT_EMPTY": "{property} không được để trống",
-  "STRING": "{property} phải là chuỗi"
+  "STRING": "{property} phải là chuỗi",
+  "MAX_LENGTH": "{property} vượt quá độ dài cho phép"
 }

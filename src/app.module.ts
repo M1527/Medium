@@ -14,6 +14,7 @@ import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { createTypeOrmOptions } from './database/typeorm.config';
+import { ArticlesModule } from './articles/articles.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { createTypeOrmOptions } from './database/typeorm.config';
     TypeOrmModule.forRoot(createTypeOrmOptions()),
     UsersModule,
     AuthModule,
+    ArticlesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,11 +1,19 @@
-import { Body, Controller, Post, Get, Request, UseGuards, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Get,
+  Request,
+  UseGuards,
+  Put,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -36,15 +44,9 @@ export class UsersController {
     return req.user;
   }
 
-   @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'))
   @Put('user')
-  updateCurrentUser(
-    @Request() req,
-    @Body() updateUserDto: UpdateUserDto,
-  ) {
-    return this.usersService.update(
-      req.user.userId,
-      updateUserDto,
-    );
+  updateCurrentUser(@Request() req, @Body() updateUserDto: UpdateUserDto) {
+    return this.usersService.update(req.user.userId, updateUserDto);
   }
 }
