@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { I18nContext, I18nService } from 'nestjs-i18n';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { UserResponseDto } from '../users/dto/user-response.dto';
 import { User } from '../users/entities/user.entity';
 import { CreateArticleDto } from './dto/create-article.dto';
@@ -23,64 +23,74 @@ export class ArticlesService {
     private readonly usersRepository: Repository<User>,
 
     private readonly i18n: I18nService,
+    private readonly dataSource: DataSource,
   ) {}
 
-  async create(createArticleDto: CreateArticleDto, userId: number) {
-    const author = await this.usersRepository.findOne({
-      where: { id: userId },
-    });
+    async create(createArticleDto: CreateArticleDto, userId: number) {
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const usersRepository = manager.getRepository(User);
+        const articlesRepository = manager.getRepository(Article);
 
-    if (!author) {
-      throw new NotFoundException(this.translate('users.errors.notFound'));
+        const author = await usersRepository.findOne({
+          where: { id: userId },
+        });
+
+        if (!author) {
+          throw new NotFoundException(this.translate('users.errors.notFound'));
+        }
+
+        const article = articlesRepository.create(createArticleDto);
+        article.author = author;
+
+        const savedArticle = await articlesRepository.save(article);
+
+        return this.createArticleResponse(savedArticle);
+      });
+    } catch (error) {
+      throw error;
+    }
+  }
+
+    async findAll(query: QueryArticlesDto) {
+    const qb = this.articlesRepository
+      .createQueryBuilder('article')
+      .leftJoinAndSelect('article.author', 'author');
+
+    if (query.q) {
+      qb.andWhere(
+        `(
+          article.title LIKE :q OR
+          article.description LIKE :q OR
+          article.body LIKE :q
+        )`,
+        {
+          q: `%${query.q.trim()}%`,
+        },
+      );
     }
 
-    const article = this.articlesRepository.create(createArticleDto);
-    article.author = author;
+    if (query.author) {
+      qb.andWhere('author.username LIKE :author', {
+        author: `%${query.author.trim()}%`,
+      });
+    }
 
-    const savedArticle = await this.articlesRepository.save(article);
+    const page = query.page ?? 1;
+    const items = query.items ?? 20;
+    const skip = (page - 1) * items;
 
-    return this.createArticleResponse(savedArticle);
+    qb.orderBy('article.createdAt', 'DESC')
+      .skip(skip)
+      .take(items);
+
+    const [articles, articlesCount] = await qb.getManyAndCount();
+
+    return {
+      articles: articles.map((article) => this.createArticleResponse(article)),
+      articlesCount,
+    };
   }
-
-  async findAll(query: QueryArticlesDto) {
-  const qb = this.articlesRepository
-    .createQueryBuilder('article')
-    .leftJoinAndSelect('article.author', 'author');
-
-  if (query.q) {
-    qb.andWhere(
-      `(
-        article.title LIKE :q OR
-        article.description LIKE :q OR
-        article.body LIKE :q
-      )`,
-      {
-        q: `%${query.q}%`,
-      },
-    );
-  }
-
-  if (query.author) {
-    qb.andWhere('author.username LIKE :author', {
-      author: `%${query.author}%`,
-    });
-  }
-
-  const page = query.page ?? 1;
-  const items = query.items ?? 20;
-  const skip = (page - 1) * items;
-
-  qb.orderBy('article.createdAt', 'DESC')
-    .skip(skip)
-    .take(items);
-
-  const [articles, articlesCount] = await qb.getManyAndCount();
-
-  return {
-    articles: articles.map((article) => this.createArticleResponse(article)),
-    articlesCount,
-  };
-}
 
   async findOne(id: number) {
     const article = await this.getArticleOrThrow(id);
@@ -88,27 +98,63 @@ export class ArticlesService {
     return this.createArticleResponse(article);
   }
 
-  async update(id: number, userId: number, updateArticleDto: UpdateArticleDto) {
-    const article = await this.getArticleOrThrow(id);
-    this.assertAuthor(article, userId);
+    async update(id: number, userId: number, updateArticleDto: UpdateArticleDto) {
+    try {
+      return await this.dataSource.transaction(async (manager) => {
+        const articlesRepository = manager.getRepository(Article);
 
-    Object.assign(article, updateArticleDto);
+        const article = await articlesRepository.findOne({
+          where: { id },
+          relations: {
+            author: true,
+          },
+        });
 
-    const updatedArticle = await this.articlesRepository.save(article);
+        if (!article) {
+          throw new NotFoundException(this.translate('articles.errors.notFound'));
+        }
 
-    return this.createArticleResponse(updatedArticle);
+        this.assertAuthor(article, userId);
+
+        Object.assign(article, updateArticleDto);
+
+        const updatedArticle = await articlesRepository.save(article);
+
+        return this.createArticleResponse(updatedArticle);
+      });
+    } catch (error) {
+      throw error;
+    }
   }
 
-  async remove(id: number, userId: number) {
-    const article = await this.getArticleOrThrow(id);
-    this.assertAuthor(article, userId);
+async remove(id: number, userId: number) {
+  try {
+    return await this.dataSource.transaction(async (manager) => {
+      const articlesRepository = manager.getRepository(Article);
 
-    await this.articlesRepository.remove(article);
+      const article = await articlesRepository.findOne({
+        where: { id },
+        relations: {
+          author: true,
+        },
+      });
 
-    return {
-      message: this.translate('articles.messages.deleted'),
-    };
+      if (!article) {
+        throw new NotFoundException(this.translate('articles.errors.notFound'));
+      }
+
+      this.assertAuthor(article, userId);
+
+      await articlesRepository.remove(article);
+
+      return {
+        message: this.translate('articles.messages.deleted'),
+      };
+    });
+  } catch (error) {
+    throw error;
   }
+}
 
   private async getArticleOrThrow(id: number) {
     const article = await this.articlesRepository.findOne({
