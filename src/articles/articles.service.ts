@@ -5,13 +5,14 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { I18nContext, I18nService } from 'nestjs-i18n';
-import { DataSource, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
+
 import { UserResponseDto } from '../users/dto/user-response.dto';
 import { User } from '../users/entities/user.entity';
 import { CreateArticleDto } from './dto/create-article.dto';
+import { QueryArticlesDto } from './dto/query-articles.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { Article } from './entities/article.entity';
-import { QueryArticlesDto } from './dto/query-articles.dto';
 
 @Injectable()
 export class ArticlesService {
@@ -23,41 +24,35 @@ export class ArticlesService {
     private readonly usersRepository: Repository<User>,
 
     private readonly i18n: I18nService,
-    private readonly dataSource: DataSource,
   ) {}
 
-    async create(createArticleDto: CreateArticleDto, userId: number) {
+  async create(createArticleDto: CreateArticleDto, userId: number) {
+    const author = await this.usersRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!author) {
+      throw new NotFoundException(this.translate('users.errors.notFound'));
+    }
+
+    const article = this.articlesRepository.create(createArticleDto);
+    article.author = author;
+
     try {
-      return await this.dataSource.transaction(async (manager) => {
-        const usersRepository = manager.getRepository(User);
-        const articlesRepository = manager.getRepository(Article);
+      const savedArticle = await this.articlesRepository.save(article);
 
-        const author = await usersRepository.findOne({
-          where: { id: userId },
-        });
-
-        if (!author) {
-          throw new NotFoundException(this.translate('users.errors.notFound'));
-        }
-
-        const article = articlesRepository.create(createArticleDto);
-        article.author = author;
-
-        const savedArticle = await articlesRepository.save(article);
-
-        return this.createArticleResponse(savedArticle);
-      });
+      return this.createArticleResponse(savedArticle);
     } catch (error) {
       throw error;
     }
   }
 
-    async findAll(query: QueryArticlesDto) {
+  async findAll(query: QueryArticlesDto) {
     const qb = this.articlesRepository
       .createQueryBuilder('article')
       .leftJoinAndSelect('article.author', 'author');
 
-    if (query.q) {
+    if (query.q?.trim()) {
       qb.andWhere(
         `(
           article.title LIKE :q OR
@@ -70,7 +65,7 @@ export class ArticlesService {
       );
     }
 
-    if (query.author) {
+    if (query.author?.trim()) {
       qb.andWhere('author.username LIKE :author', {
         author: `%${query.author.trim()}%`,
       });
@@ -80,9 +75,7 @@ export class ArticlesService {
     const items = query.items ?? 20;
     const skip = (page - 1) * items;
 
-    qb.orderBy('article.createdAt', 'DESC')
-      .skip(skip)
-      .take(items);
+    qb.orderBy('article.createdAt', 'DESC').skip(skip).take(items);
 
     const [articles, articlesCount] = await qb.getManyAndCount();
 
@@ -98,63 +91,39 @@ export class ArticlesService {
     return this.createArticleResponse(article);
   }
 
-    async update(id: number, userId: number, updateArticleDto: UpdateArticleDto) {
+  async update(
+    id: number,
+    userId: number,
+    updateArticleDto: UpdateArticleDto,
+  ) {
+    const article = await this.getArticleOrThrow(id);
+    this.assertAuthor(article, userId);
+
+    Object.assign(article, updateArticleDto);
+
     try {
-      return await this.dataSource.transaction(async (manager) => {
-        const articlesRepository = manager.getRepository(Article);
+      const updatedArticle = await this.articlesRepository.save(article);
 
-        const article = await articlesRepository.findOne({
-          where: { id },
-          relations: {
-            author: true,
-          },
-        });
-
-        if (!article) {
-          throw new NotFoundException(this.translate('articles.errors.notFound'));
-        }
-
-        this.assertAuthor(article, userId);
-
-        Object.assign(article, updateArticleDto);
-
-        const updatedArticle = await articlesRepository.save(article);
-
-        return this.createArticleResponse(updatedArticle);
-      });
+      return this.createArticleResponse(updatedArticle);
     } catch (error) {
       throw error;
     }
   }
 
-async remove(id: number, userId: number) {
-  try {
-    return await this.dataSource.transaction(async (manager) => {
-      const articlesRepository = manager.getRepository(Article);
+  async remove(id: number, userId: number) {
+    const article = await this.getArticleOrThrow(id);
+    this.assertAuthor(article, userId);
 
-      const article = await articlesRepository.findOne({
-        where: { id },
-        relations: {
-          author: true,
-        },
-      });
-
-      if (!article) {
-        throw new NotFoundException(this.translate('articles.errors.notFound'));
-      }
-
-      this.assertAuthor(article, userId);
-
-      await articlesRepository.remove(article);
+    try {
+      await this.articlesRepository.remove(article);
 
       return {
         message: this.translate('articles.messages.deleted'),
       };
-    });
-  } catch (error) {
-    throw error;
+    } catch (error) {
+      throw error;
+    }
   }
-}
 
   private async getArticleOrThrow(id: number) {
     const article = await this.articlesRepository.findOne({
