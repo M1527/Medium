@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { I18nContext, I18nService } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 
 import { Article } from '../articles/entities/article.entity';
@@ -22,6 +23,8 @@ export class CommentsService {
 
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+
+    private readonly i18n: I18nService,
   ) {}
 
   async create(
@@ -34,7 +37,7 @@ export class CommentsService {
     });
 
     if (!article) {
-      throw new NotFoundException('Article not found');
+      throw new NotFoundException(this.translate('articles.errors.notFound'));
     }
 
     const author = await this.usersRepository.findOne({
@@ -42,7 +45,7 @@ export class CommentsService {
     });
 
     if (!author) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(this.translate('users.errors.notFound'));
     }
 
     const comment = this.commentsRepository.create({
@@ -83,19 +86,17 @@ export class CommentsService {
     });
 
     if (!comment) {
-      throw new NotFoundException('Comment not found');
+      throw new NotFoundException(this.translate('comments.errors.notFound'));
     }
 
     if (comment.author.id !== userId) {
-      throw new ForbiddenException(
-        'You are not allowed to delete this comment',
-      );
+      throw new ForbiddenException(this.translate('comments.errors.forbidden'));
     }
 
     await this.commentsRepository.remove(comment);
 
     return {
-      message: 'Comment deleted successfully',
+      message: this.translate('comments.messages.deleted'),
     };
   }
 
@@ -106,5 +107,9 @@ export class CommentsService {
       ...comment,
       author,
     };
+  }
+
+  private translate(key: string): string {
+    return this.i18n.t(key, { lang: I18nContext.current()?.lang });
   }
 }
