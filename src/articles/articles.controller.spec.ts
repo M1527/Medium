@@ -1,13 +1,21 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import * as bcrypt from 'bcrypt';
 import request = require('supertest');
 import { DataSource, Repository } from 'typeorm';
 
 import { AppModule } from '../app.module';
 import { Article } from './entities/article.entity';
 import { User } from '../users/entities/user.entity';
+import { seedArticle, seedUser, truncateTables } from '../test/seed-record';
 
 describe('ArticlesController (integration)', () => {
   let app: INestApplication;
@@ -38,35 +46,12 @@ describe('ArticlesController (integration)', () => {
   });
 
   beforeEach(async () => {
-    await dataSource.query('SET FOREIGN_KEY_CHECKS = 0');
-
-    await dataSource.query('TRUNCATE TABLE articles');
-    await dataSource.query('TRUNCATE TABLE users');
-
-    await dataSource.query('SET FOREIGN_KEY_CHECKS = 1');
+    await truncateTables(dataSource, ['articles', 'users']);
   });
 
   afterAll(async () => {
     await app.close();
   });
-
-  async function seedUser(options?: {
-    email?: string;
-    username?: string;
-    password?: string;
-  }) {
-    const email = options?.email ?? 'author@example.com';
-    const username = options?.username ?? 'author';
-    const password = options?.password ?? 'password123';
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    return userRepository.save({
-      email,
-      username,
-      password: hashedPassword,
-    });
-  }
 
   async function login(email: string, password: string) {
     const response = await request(app.getHttpServer())
@@ -95,7 +80,7 @@ describe('ArticlesController (integration)', () => {
   }
 
   it('POST /articles creates article and persists authorId', async () => {
-    const author = await seedUser({
+    const author = await seedUser(userRepository, {
       email: 'author1@example.com',
       username: 'author1',
       password: 'password123',
@@ -132,13 +117,13 @@ describe('ArticlesController (integration)', () => {
   });
 
   it('GET /articles returns paginated articles and supports search/filter', async () => {
-    const author1 = await seedUser({
+    const author1 = await seedUser(userRepository, {
       email: 'author1@example.com',
       username: 'author1',
       password: 'password123',
     });
 
-    const author2 = await seedUser({
+    const author2 = await seedUser(userRepository, {
       email: 'author2@example.com',
       username: 'author2',
       password: 'password123',
@@ -196,7 +181,7 @@ describe('ArticlesController (integration)', () => {
   });
 
   it('GET /articles/:id returns article by id', async () => {
-    const author = await seedUser({
+    const author = await seedUser(userRepository, {
       email: 'author1@example.com',
       username: 'author1',
       password: 'password123',
@@ -228,7 +213,7 @@ describe('ArticlesController (integration)', () => {
   });
 
   it('PUT /articles/:id lets author update own article', async () => {
-    const author = await seedUser({
+    const author = await seedUser(userRepository, {
       email: 'author1@example.com',
       username: 'author1',
       password: 'password123',
@@ -269,13 +254,13 @@ describe('ArticlesController (integration)', () => {
   });
 
   it('PUT /articles/:id forbids non-author update', async () => {
-    const author = await seedUser({
+    const author = await seedUser(userRepository, {
       email: 'author1@example.com',
       username: 'author1',
       password: 'password123',
     });
 
-    const otherUser = await seedUser({
+    const otherUser = await seedUser(userRepository, {
       email: 'author2@example.com',
       username: 'author2',
       password: 'password123',
@@ -310,7 +295,7 @@ describe('ArticlesController (integration)', () => {
   });
 
   it('DELETE /articles/:id lets author delete own article', async () => {
-    const author = await seedUser({
+    const author = await seedUser(userRepository, {
       email: 'author1@example.com',
       username: 'author1',
       password: 'password123',
@@ -341,13 +326,13 @@ describe('ArticlesController (integration)', () => {
   });
 
   it('DELETE /articles/:id forbids non-author delete', async () => {
-    const author = await seedUser({
+    const author = await seedUser(userRepository, {
       email: 'author1@example.com',
       username: 'author1',
       password: 'password123',
     });
 
-    const otherUser = await seedUser({
+    const otherUser = await seedUser(userRepository, {
       email: 'author2@example.com',
       username: 'author2',
       password: 'password123',
