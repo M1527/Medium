@@ -54,9 +54,13 @@ export class CommentsService {
       author,
     });
 
-    const savedComment = await this.commentsRepository.save(comment);
+    try {
+      const savedComment = await this.commentsRepository.save(comment);
 
-    return this.createCommentResponse(savedComment);
+      return this.createCommentResponse(savedComment);
+    } catch (error) {
+      throw error;
+    }
   }
 
   async findAll(articleId: number) {
@@ -90,14 +94,20 @@ export class CommentsService {
     }
 
     if (comment.author.id !== userId) {
-      throw new ForbiddenException(this.translate('comments.errors.forbidden'));
+      throw new ForbiddenException(
+        this.translate('comments.errors.forbidden'),
+      );
     }
 
-    await this.commentsRepository.remove(comment);
+    try {
+      await this.commentsRepository.remove(comment);
 
-    return {
-      message: this.translate('comments.messages.deleted'),
-    };
+      return {
+        message: this.translate('comments.messages.deleted'),
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 
   private createCommentResponse(comment: Comment) {
