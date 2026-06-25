@@ -11,6 +11,7 @@ import { Article } from '../articles/entities/article.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { Comment } from './entities/comment.entity';
+import { AttachmentsService } from '../attachments/attachments.service';
 
 @Injectable()
 export class CommentsService {
@@ -24,6 +25,8 @@ export class CommentsService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
 
+    private readonly attachmentsService: AttachmentsService,
+
     private readonly i18n: I18nService,
   ) {}
 
@@ -31,6 +34,7 @@ export class CommentsService {
     articleId: number,
     userId: number,
     createCommentDto: CreateCommentDto,
+    files: Express.Multer.File[],
   ) {
     const article = await this.articlesRepository.findOne({
       where: { id: articleId },
@@ -57,7 +61,20 @@ export class CommentsService {
     try {
       const savedComment = await this.commentsRepository.save(comment);
 
-      return this.createCommentResponse(savedComment);
+      const attachments = await this.attachmentsService.createMany(
+        files,
+        'comment',
+        savedComment.id.toString(),
+      );
+
+      return {
+        ...this.createCommentResponse(savedComment),
+        attachments: attachments.map((attachment) => ({
+          id: attachment.id,
+          filename: attachment.filename,
+          url: `/attachments/${attachment.id}`,
+        })),
+      };
     } catch (error) {
       throw error;
     }
@@ -78,9 +95,27 @@ export class CommentsService {
       },
     });
 
-    return comments.map((comment) => this.createCommentResponse(comment));
-  }
+    const commentsWithAttachments = await Promise.all(
+      comments.map(async (comment) => {
+        const attachments = await this.attachmentsService.findByObject(
+          'comment',
+          comment.id.toString(),
+        );
 
+        return {
+          ...this.createCommentResponse(comment),
+          attachments: attachments.map((attachment) => ({
+            id: attachment.id,
+            filename: attachment.filename,
+            url: `/attachments/${attachment.id}`,
+          })),
+        };
+      }),
+    );
+
+    return commentsWithAttachments;
+  }
+  
   async remove(id: number, userId: number) {
     const comment = await this.commentsRepository.findOne({
       where: { id },

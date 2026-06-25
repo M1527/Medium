@@ -8,12 +8,16 @@ import {
   Post,
   Request,
   UseGuards,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiConsumes, ApiBody, } from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
 
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
+import { diskStorage } from 'multer';
 
 @ApiTags('comments')
 @ApiBearerAuth()
@@ -23,15 +27,44 @@ export class CommentsController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('articles/:articleId/comments')
+  @UseInterceptors(
+    FilesInterceptor('files', 10, {
+      storage: diskStorage({
+        destination: './uploads/comments',
+        filename: (req, file, cb) => {
+          cb(null, `${Date.now()}-${file.originalname}`);
+        },
+      }),
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['body'],
+      properties: {
+        body: { type: 'string' },
+        files: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+    },
+  })
   create(
     @Param('articleId', ParseIntPipe) articleId: number,
     @Body() createCommentDto: CreateCommentDto,
+    @UploadedFiles() files: Express.Multer.File[],
     @Request() req,
   ) {
     return this.commentsService.create(
       articleId,
       req.user.userId,
       createCommentDto,
+      files,
     );
   }
 

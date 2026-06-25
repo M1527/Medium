@@ -6,9 +6,10 @@ import { CommentsService } from './comments.service';
 import { Comment } from './entities/comment.entity';
 import { Article } from '../articles/entities/article.entity';
 import { User } from '../users/entities/user.entity';
+import { AttachmentsModule } from '../attachments/attachments.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Comment, Article, User])],
+  imports: [TypeOrmModule.forFeature([Comment, Article, User]), AttachmentsModule],
   controllers: [CommentsController],
   providers: [CommentsService],
 })
