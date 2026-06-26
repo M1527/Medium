@@ -12,12 +12,18 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth, ApiTags, ApiConsumes, ApiBody, } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { randomUUID } from 'crypto';
 
 import { CommentsService } from './comments.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { diskStorage } from 'multer';
+
+type AttachmentUploadFile = Express.Multer.File & {
+  attachmentId?: string;
+};
 
 @ApiTags('comments')
 @ApiBearerAuth()
@@ -32,7 +38,10 @@ export class CommentsController {
       storage: diskStorage({
         destination: './uploads/comments',
         filename: (req, file, cb) => {
-          cb(null, `${Date.now()}-${file.originalname}`);
+          const attachmentId = randomUUID();
+
+          (file as AttachmentUploadFile).attachmentId = attachmentId;
+          cb(null, `${attachmentId}${extname(file.originalname)}`);
         },
       }),
     }),
@@ -43,7 +52,9 @@ export class CommentsController {
       type: 'object',
       required: ['body'],
       properties: {
-        body: { type: 'string' },
+        body: {
+          type: 'string',
+        },
         files: {
           type: 'array',
           items: {

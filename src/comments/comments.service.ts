@@ -1,20 +1,24 @@
 import {
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { unlink } from 'fs/promises';
 import { I18nContext, I18nService } from 'nestjs-i18n';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 import { Article } from '../articles/entities/article.entity';
+import { AttachmentsService } from '../attachments/attachments.service';
 import { User } from '../users/entities/user.entity';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { Comment } from './entities/comment.entity';
-import { AttachmentsService } from '../attachments/attachments.service';
 
 @Injectable()
 export class CommentsService {
+  private readonly logger = new Logger(CommentsService.name);
+
   constructor(
     @InjectRepository(Comment)
     private readonly commentsRepository: Repository<Comment>,
@@ -27,6 +31,8 @@ export class CommentsService {
 
     private readonly attachmentsService: AttachmentsService,
 
+    private readonly dataSource: DataSource,
+
     private readonly i18n: I18nService,
   ) {}
 
@@ -36,46 +42,56 @@ export class CommentsService {
     createCommentDto: CreateCommentDto,
     files: Express.Multer.File[],
   ) {
-    const article = await this.articlesRepository.findOne({
-      where: { id: articleId },
-    });
-
-    if (!article) {
-      throw new NotFoundException(this.translate('articles.errors.notFound'));
-    }
-
-    const author = await this.usersRepository.findOne({
-      where: { id: userId },
-    });
-
-    if (!author) {
-      throw new NotFoundException(this.translate('users.errors.notFound'));
-    }
-
-    const comment = this.commentsRepository.create({
-      body: createCommentDto.body,
-      article,
-      author,
-    });
-
     try {
-      const savedComment = await this.commentsRepository.save(comment);
+      return await this.dataSource.transaction(async (manager) => {
+        const article = await manager.getRepository(Article).findOne({
+          where: { id: articleId },
+        });
 
-      const attachments = await this.attachmentsService.createMany(
-        files,
-        'comment',
-        savedComment.id.toString(),
-      );
+        if (!article) {
+          throw new NotFoundException(
+            this.translate('articles.errors.notFound'),
+          );
+        }
 
-      return {
-        ...this.createCommentResponse(savedComment),
-        attachments: attachments.map((attachment) => ({
-          id: attachment.id,
-          filename: attachment.filename,
-          url: `/attachments/${attachment.id}`,
-        })),
-      };
+        const author = await manager.getRepository(User).findOne({
+          where: { id: userId },
+        });
+
+        if (!author) {
+          throw new NotFoundException(this.translate('users.errors.notFound'));
+        }
+
+        const commentsRepository = manager.getRepository(Comment);
+        const comment = commentsRepository.create({
+          body: createCommentDto.body,
+          article,
+          author,
+        });
+
+        const savedComment = await commentsRepository.save(comment);
+
+        const attachments = await this.attachmentsService.createMany(
+          files,
+          'comment',
+          savedComment.id.toString(),
+          manager,
+        );
+
+        return {
+          ...this.createCommentResponse(savedComment),
+          attachments: attachments.map((attachment) =>
+            this.createAttachmentResponse(attachment),
+          ),
+        };
+      });
     } catch (error) {
+      await this.deleteUploadedFiles(files);
+      this.logger.error(
+        'Failed to create comment',
+        error instanceof Error ? error.stack : undefined,
+        JSON.stringify({ articleId, userId }),
+      );
       throw error;
     }
   }
@@ -104,18 +120,16 @@ export class CommentsService {
 
         return {
           ...this.createCommentResponse(comment),
-          attachments: attachments.map((attachment) => ({
-            id: attachment.id,
-            filename: attachment.filename,
-            url: `/attachments/${attachment.id}`,
-          })),
+          attachments: attachments.map((attachment) =>
+            this.createAttachmentResponse(attachment),
+          ),
         };
       }),
     );
 
     return commentsWithAttachments;
   }
-  
+
   async remove(id: number, userId: number) {
     const comment = await this.commentsRepository.findOne({
       where: { id },
@@ -129,12 +143,15 @@ export class CommentsService {
     }
 
     if (comment.author.id !== userId) {
-      throw new ForbiddenException(
-        this.translate('comments.errors.forbidden'),
-      );
+      throw new ForbiddenException(this.translate('comments.errors.forbidden'));
     }
 
     try {
+      await this.attachmentsService.softDeleteByObject(
+        'comment',
+        comment.id.toString(),
+      );
+
       await this.commentsRepository.remove(comment);
 
       return {
@@ -152,6 +169,31 @@ export class CommentsService {
       ...comment,
       author,
     };
+  }
+
+  private createAttachmentResponse(attachment: {
+    id: string;
+    filename: string;
+  }) {
+    return {
+      id: attachment.id,
+      filename: attachment.id,
+      url: `/attachments/${attachment.id}`,
+    };
+  }
+
+  private async deleteUploadedFiles(files: Express.Multer.File[]) {
+    await Promise.all(
+      (files ?? []).map((file) =>
+        unlink(file.path).catch((error: unknown) => {
+          this.logger.warn(
+            `Failed to delete uploaded file ${file.path}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }),
+      ),
+    );
   }
 
   private translate(key: string): string {
