@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToMany,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Comment } from '../../comments/entities/comment.entity';
@@ -35,4 +36,7 @@ export class Article {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @ManyToMany(() => User, (user) => user.favoriteArticles)
+  favoritedBy!: User[];
 }

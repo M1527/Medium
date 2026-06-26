@@ -50,7 +50,8 @@ export class ArticlesService {
   async findAll(query: QueryArticlesDto) {
     const qb = this.articlesRepository
       .createQueryBuilder('article')
-      .leftJoinAndSelect('article.author', 'author');
+      .leftJoinAndSelect('article.author', 'author')
+      .leftJoinAndSelect('article.favoritedBy', 'favoritedBy');
 
     if (query.q?.trim()) {
       qb.andWhere(
@@ -85,10 +86,10 @@ export class ArticlesService {
     };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, currentUserId?: number) {
     const article = await this.getArticleOrThrow(id);
 
-    return this.createArticleResponse(article);
+    return this.createArticleResponse(article, currentUserId);
   }
 
   async update(
@@ -130,6 +131,7 @@ export class ArticlesService {
       where: { id },
       relations: {
         author: true,
+        favoritedBy: true,
       },
     });
 
@@ -146,14 +148,82 @@ export class ArticlesService {
     }
   }
 
-  private createArticleResponse(article: Article) {
+  private createArticleResponse(article: Article, currentUserId?: number) {
+    const favoritesCount = article.favoritedBy?.length ?? 0;
+    const favorited = currentUserId
+      ? article.favoritedBy?.some((user) => user.id === currentUserId) ?? false
+      : false;
+
+    const { favoritedBy, ...articleData } = article;
+
     return {
-      ...article,
+      ...articleData,
       author: UserResponseDto.createFromUser(article.author),
+      favorited,
+      favoritesCount,
     };
   }
 
   private translate(key: string): string {
     return this.i18n.t(key, { lang: I18nContext.current()?.lang });
+  }
+
+  async favorite(id: number, userId: number) {
+    const article = await this.getArticleOrThrow(id);
+
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: {
+        favoriteArticles: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(
+        this.translate('users.errors.notFound'),
+      );
+    }
+
+    const alreadyFavorited =
+      user.favoriteArticles.some(
+        (favoriteArticle) => favoriteArticle.id === article.id,
+      );
+
+    if (!alreadyFavorited) {
+      user.favoriteArticles.push(article);
+
+      await this.usersRepository.save(user);
+    }
+
+    const updatedArticle = await this.getArticleOrThrow(id);
+    return this.createArticleResponse(updatedArticle, userId);
+  }
+
+  async unfavorite(id: number, userId: number) {
+    const article = await this.getArticleOrThrow(id);
+
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: {
+        favoriteArticles: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException(
+        this.translate('users.errors.notFound'),
+      );
+    }
+
+    user.favoriteArticles =
+      user.favoriteArticles.filter(
+        (favoriteArticle) =>
+          favoriteArticle.id !== article.id,
+      );
+
+    await this.usersRepository.save(user);
+
+    const updatedArticle = await this.getArticleOrThrow(id);
+    return this.createArticleResponse(updatedArticle, userId);
   }
 }
