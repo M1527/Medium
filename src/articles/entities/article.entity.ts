@@ -5,8 +5,10 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Comment } from '../../comments/entities/comment.entity';
 
 @Entity('articles')
 export class Article {
@@ -24,6 +26,9 @@ export class Article {
 
   @ManyToOne(() => User, (user) => user.articles, { nullable: false })
   author!: User;
+
+  @OneToMany(() => Comment, (comment) => comment.article)
+  comments!: Comment[];
 
   @CreateDateColumn()
   createdAt!: Date;
