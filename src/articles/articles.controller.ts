@@ -56,4 +56,28 @@ export class ArticlesController {
   remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.articlesService.remove(id, req.user.userId);
   }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/favorite')
+  favorite(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+  ) {
+    return this.articlesService.favorite(
+      id,
+      req.user.userId,
+    );
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Delete(':id/favorite')
+  unfavorite(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+  ) {
+    return this.articlesService.unfavorite(
+      id,
+      req.user.userId,
+    );
+  }
 }
