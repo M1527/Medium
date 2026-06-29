@@ -17,6 +17,7 @@ import { createTypeOrmOptions } from './database/typeorm.config';
 import { ArticlesModule } from './articles/articles.module';
 import { CommentsModule } from './comments/comments.module';
 import { AttachmentsModule } from './attachments/attachments.module';
+import { ProfilesModule } from './profiles/profiles.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { AttachmentsModule } from './attachments/attachments.module';
     ArticlesModule,
     CommentsModule,
     AttachmentsModule,
+    ProfilesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

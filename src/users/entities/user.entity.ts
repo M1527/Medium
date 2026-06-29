@@ -5,6 +5,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 import { Article } from '../../articles/entities/article.entity';
 import { Comment } from '../../comments/entities/comment.entity';
@@ -34,4 +36,21 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @ManyToMany(() => User, (user) => user.followers)
+  @JoinTable({
+    name: 'users_following_users',
+    joinColumn: {
+      name: 'followerId',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'followingId',
+      referencedColumnName: 'id',
+    },
+  })
+  following!: User[];
+
+  @ManyToMany(() => User, (user) => user.following)
+  followers!: User[];
 }
