@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { I18nContext, I18nService } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
 
 import { User } from '../users/entities/user.entity';
@@ -13,6 +14,7 @@ export class ProfilesService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    private readonly i18n: I18nService,
   ) {}
 
   async findByUsername(username: string, currentUserId?: number) {
@@ -24,7 +26,7 @@ export class ProfilesService {
     });
 
     if (!profile) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(this.translate('users.errors.notFound'));
     }
 
     return this.buildProfileResponse(profile, currentUserId);
@@ -39,7 +41,7 @@ export class ProfilesService {
     });
 
     if (!currentUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(this.translate('users.errors.notFound'));
     }
 
     const targetUser = await this.usersRepository.findOne({
@@ -50,18 +52,20 @@ export class ProfilesService {
     });
 
     if (!targetUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(this.translate('users.errors.notFound'));
     }
 
     if (currentUser.id === targetUser.id) {
-      throw new BadRequestException('You cannot follow yourself');
+      throw new BadRequestException(
+        this.translate('profiles.errors.cannotFollowYourself'),
+      );
     }
 
-    const alreadyFollowing = currentUser.following.some(
+    const isAlreadyFollowing = currentUser.following.some(
       (user) => user.id === targetUser.id,
     );
 
-    if (!alreadyFollowing) {
+    if (!isAlreadyFollowing) {
       currentUser.following.push(targetUser);
       await this.usersRepository.save(currentUser);
     }
@@ -78,7 +82,7 @@ export class ProfilesService {
     });
 
     if (!currentUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(this.translate('users.errors.notFound'));
     }
 
     const targetUser = await this.usersRepository.findOne({
@@ -89,7 +93,7 @@ export class ProfilesService {
     });
 
     if (!targetUser) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(this.translate('users.errors.notFound'));
     }
 
     currentUser.following = currentUser.following.filter(
@@ -108,8 +112,13 @@ export class ProfilesService {
       ...user,
       following:
         currentUserId !== undefined
-          ? profile.followers?.some((user) => user.id === currentUserId) ?? false
+          ? (profile.followers?.some((user) => user.id === currentUserId) ??
+            false)
           : false,
     };
+  }
+
+  private translate(key: string): string {
+    return this.i18n.t(key, { lang: I18nContext.current()?.lang });
   }
 }
