@@ -192,7 +192,11 @@ export class ArticlesService {
     if (!alreadyFavorited) {
       user.favoriteArticles.push(article);
 
-      await this.usersRepository.save(user);
+      try {
+        await this.usersRepository.save(user);
+      } catch (error) {
+        throw error;
+      }
     }
 
     const updatedArticle = await this.getArticleOrThrow(id);
@@ -221,7 +225,11 @@ export class ArticlesService {
           favoriteArticle.id !== article.id,
       );
 
-    await this.usersRepository.save(user);
+    try {
+      await this.usersRepository.save(user);
+    } catch (error) {
+      throw error;
+    }
 
     const updatedArticle = await this.getArticleOrThrow(id);
     return this.createArticleResponse(updatedArticle, userId);
