@@ -6,7 +6,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { I18nContext, I18nService } from 'nestjs-i18n';
 import { Repository } from 'typeorm';
-
+import { ProfileResponseDto } from './dto/profile-response.dto';
+import { plainToInstance } from 'class-transformer';
 import { User } from '../users/entities/user.entity';
 
 @Injectable()
@@ -29,7 +30,16 @@ export class ProfilesService {
       throw new NotFoundException(this.translate('users.errors.notFound'));
     }
 
-    return this.buildProfileResponse(profile, currentUserId);
+    return plainToInstance(
+      ProfileResponseDto,
+      {
+        ...profile,
+        currentUserId,
+      },
+      {
+        excludeExtraneousValues: true,
+      },
+    );
   }
 
   async follow(currentUserId: number, username: string) {
@@ -103,19 +113,6 @@ export class ProfilesService {
     await this.usersRepository.save(currentUser);
 
     return this.findByUsername(username, currentUserId);
-  }
-
-  private buildProfileResponse(profile: User, currentUserId?: number) {
-    const { password, ...user } = profile;
-
-    return {
-      ...user,
-      following:
-        currentUserId !== undefined
-          ? (profile.followers?.some((user) => user.id === currentUserId) ??
-            false)
-          : false,
-    };
   }
 
   private translate(key: string): string {
