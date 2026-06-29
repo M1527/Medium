@@ -77,7 +77,12 @@ export class ProfilesService {
 
     if (!isAlreadyFollowing) {
       currentUser.following.push(targetUser);
-      await this.usersRepository.save(currentUser);
+
+      try {
+        await this.usersRepository.save(currentUser);
+      } catch (error) {
+        throw error;
+      }
     }
 
     return this.findByUsername(username, currentUserId);
@@ -110,7 +115,11 @@ export class ProfilesService {
       (user) => user.id !== targetUser.id,
     );
 
-    await this.usersRepository.save(currentUser);
+    try {
+      await this.usersRepository.save(currentUser);
+    } catch (error) {
+      throw error;
+    }
 
     return this.findByUsername(username, currentUserId);
   }
