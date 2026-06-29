@@ -37,6 +37,22 @@ export class User {
   @UpdateDateColumn()
   updatedAt!: Date;
 
+  @ManyToMany(() => User, (user) => user.followers)
+  @JoinTable({
+    name: 'users_following_users',
+    joinColumn: {
+      name: 'followerId',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'followingId',
+      referencedColumnName: 'id',
+    },
+  })
+  following!: User[];
+
+  @ManyToMany(() => User, (user) => user.following)
+  followers!: User[];
   @ManyToMany(() => Article, (article) => article.favoritedBy)
   @JoinTable({
     name: 'users_favorite_articles',
