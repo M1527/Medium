@@ -53,4 +53,17 @@ export class User {
 
   @ManyToMany(() => User, (user) => user.following)
   followers!: User[];
+  @ManyToMany(() => Article, (article) => article.favoritedBy)
+  @JoinTable({
+    name: 'users_favorite_articles',
+    joinColumn: {
+      name: 'userId',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'articleId',
+      referencedColumnName: 'id',
+    },
+  })
+  favoriteArticles!: Article[];
 }
